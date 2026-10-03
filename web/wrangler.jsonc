@@ -1,0 +1,28 @@
+// Cloudflare deployment: one Worker serves the built app from dist/ and runs
+// worker/index.ts for /api/* (the Gemini proxy). Deploy with `npm run deploy`.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chess-puzzle-coach",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Everything else is served as a static file without running the Worker
+    // (free and unlimited on Cloudflare).
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "LIMITER", "class_name": "VisitorLimiter" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["VisitorLimiter"] }],
+  "vars": {
+    // Must match the app's COACH_MODEL (default in vite.config.ts).
+    "GEMINI_MODEL": "gemini-3.5-flash-lite",
+    // Gemini calls per visitor; one coach question uses 1 to 6.
+    "VISITOR_PER_MINUTE": "10",
+    "VISITOR_PER_DAY": "60"
+  },
+  // GEMINI_API_KEY is a secret: `npx wrangler secret put GEMINI_API_KEY`.
+  "observability": { "enabled": true }
+}

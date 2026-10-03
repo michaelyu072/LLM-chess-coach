@@ -1,0 +1,6 @@
+# Cloudflare static-asset headers (copied into dist/ by Vite). Cross-origin
+# isolation lets the page use SharedArrayBuffer, which the multi-threaded
+# browser Stockfish needs; the Vite dev server sends the same two headers.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

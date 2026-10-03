@@ -1,0 +1,313 @@
+Chess Puzzle Coach
+
+An offline-first chess puzzle web app that combines Lichess puzzles with LLM-generated hints and explanations to provide an interactive chess coaching experience.
+
+The app is designed around a simple principle:
+
+Chess correctness is deterministic; AI provides the coaching.
+
+Puzzle solutions are validated against the original Lichess solution data, while an LLM generates natural-language hints and explanations ahead of time. This allows the app to run without an LLM or chess engine during gameplay.
+
+Features
+♟️ Interactive chess puzzles with a responsive web chessboard
+🧩 2,000+ curated Lichess puzzles across a range of tactical themes
+💡 Progressive hints after incorrect attempts
+🤖 AI-generated explanations describing the tactical idea behind each solution
+📚 Theme-based practice such as forks, pins, skewers, sacrifices, and discovered attacks
+📈 Difficulty-aware puzzle selection
+🔌 Offline-first gameplay with no network requests required to solve puzzles
+⚡ Instant deterministic move validation
+📊 Progress tracking including accuracy, streaks, and puzzle performance
+Architecture
+                    ┌─────────────────────┐
+                    │   Lichess Dataset   │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │ Puzzle Processing    │
+                    │ & Selection Pipeline │
+                    └──────────┬──────────┘
+                               │
+                  ┌────────────┴────────────┐
+                  ▼                         ▼
+        ┌─────────────────┐       ┌─────────────────┐
+        │ Puzzle Metadata │       │ LLM Generation  │
+        │ & Solutions     │       │ Hints/Explan.   │
+        └────────┬────────┘       └────────┬────────┘
+                 │                         │
+                 └────────────┬────────────┘
+                              ▼
+                    ┌─────────────────────┐
+                    │ Local Puzzle Store  │
+                    │ SQLite / JSON       │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │   Web Application    │
+                    ├─────────────────────┤
+                    │ Chessboard UI        │
+                    │ Move Validation      │
+                    │ Hint System          │
+                    │ Explanations         │
+                    │ Progress Tracking    │
+                    └─────────────────────┘
+How It Works
+1. Puzzle Selection
+
+The application starts with the publicly available Lichess puzzle database.
+
+The dataset is filtered to select puzzles that are appropriate for the application:
+
+Medium tactical difficulty
+Sufficient popularity / play history
+Non-trivial solutions
+Diverse tactical themes
+Exclusion of overly simple puzzles such as immediate mate-in-one positions
+
+The processed dataset is reduced to a manageable local corpus rather than requiring millions of puzzles in the application.
+
+2. AI Coaching Generation
+
+For each selected puzzle, an LLM receives:
+
+Starting FEN
+Expected solution moves
+Puzzle themes
+Relevant game metadata
+
+The model generates structured coaching content:
+
+{
+  "hint_1": "Look for a forcing move against the king.",
+  "hint_2": "Consider whether a check can create a tactical fork.",
+  "explanation": "The key idea is to use the knight to attack both the king and queen..."
+}
+
+The model explains the known solution rather than independently determining whether the solution is correct.
+
+This keeps chess correctness separate from language generation.
+
+3. Deterministic Move Validation
+
+During gameplay, the application compares the user's moves against the puzzle's known solution.
+
+User Move
+   │
+   ▼
+Is the move legal?
+   │
+   ├── No ──► Reject
+   │
+   ▼
+Does it match the expected solution?
+   │
+   ├── No ──► Incorrect attempt
+   │
+   └── Yes ─► Advance puzzle
+
+No LLM or remote API is required to determine whether a move is correct.
+
+4. Progressive Coaching
+
+The app provides increasingly specific assistance as the user struggles.
+
+Attempt 1
+   │
+   ▼
+Incorrect
+   │
+   ▼
+Attempt 2
+   │
+   ▼
+Incorrect
+   │
+   ▼
+Hint 1
+   │
+   ▼
+Another incorrect attempt
+   │
+   ▼
+Hint 2
+   │
+   ▼
+Solution
+   │
+   ▼
+AI Explanation
+
+Hints are generated ahead of time and stored with the puzzle, allowing them to be displayed instantly.
+
+Data Model
+
+A puzzle record contains approximately:
+
+{
+  "id": "example123",
+  "fen": "...",
+  "moves": [
+    "e2e4",
+    "e7e5"
+  ],
+  "rating": 1650,
+  "themes": [
+    "fork",
+    "middlegame"
+  ],
+  "hint_1": "...",
+  "hint_2": "...",
+  "explanation": "..."
+}
+
+The application can store additional metadata for adaptive puzzle selection:
+
+attempts
+successes
+average_time
+user_rating
+last_attempted
+theme
+difficulty
+Technology
+Frontend
+TypeScript
+React
+Chessboard UI
+Responsive web interface
+Chess Logic
+FEN parsing
+Legal move generation
+SAN/UCI conversion
+Check/checkmate detection
+Deterministic solution validation
+Data
+Lichess puzzle database
+SQLite / local database
+Pre-generated coaching metadata
+AI
+LLM for hint and explanation generation
+Batch inference pipeline
+Structured JSON output
+Offline precomputation
+AI Design
+
+The project intentionally avoids using an LLM for every user interaction.
+
+Instead:
+
+                 ┌─────────────────────┐
+                 │ LLM Batch Pipeline  │
+                 └──────────┬──────────┘
+                            │
+                    Generate once
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Stored Hints +      │
+                 │ Explanations        │
+                 └──────────┬──────────┘
+                            │
+                     Used repeatedly
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │     Web Client      │
+                 └─────────────────────┘
+
+This provides:
+
+Lower inference cost
+Predictable latency
+Offline gameplay
+Deterministic behavior
+Consistent coaching quality
+Evaluation
+
+The generated coaching content is validated against the underlying puzzle solution.
+
+Evaluation includes:
+
+Puzzle correctness
+Legal move validation
+Solution sequence validation
+FEN consistency
+AI content
+Explanation references the correct tactical idea
+Suggested moves correspond to the actual solution
+No hallucinated board positions
+Structured output validation
+User experience
+
+Track:
+
+Puzzle completion rate
+Accuracy
+Average attempts
+Hint usage
+Average solve time
+Performance by tactical theme
+Development
+Prerequisites
+Node.js
+npm
+Python
+Lichess puzzle dataset
+LLM API access for the offline content-generation pipeline
+Running the Web App
+npm install
+npm run dev
+
+The application will start a local development server.
+
+Running the Puzzle Pipeline
+python pipeline/download.py
+python pipeline/filter.py
+python pipeline/generate_coaching.py
+python pipeline/validate.py
+
+The pipeline:
+
+Downloads the Lichess dataset
+Filters and selects puzzles
+Generates AI coaching content
+Validates the generated dataset
+Produces the application-ready puzzle database
+Project Goals
+
+This project is intended to demonstrate several engineering concepts:
+
+Building a production-style web application
+Processing a large public dataset
+Deterministic state validation
+Offline-first application architecture
+Batch LLM inference
+Structured LLM outputs
+AI evaluation and validation
+Adaptive user experiences
+Separating probabilistic AI components from deterministic business logic
+Future Improvements
+Adaptive puzzle difficulty based on user performance
+Spaced repetition
+Opening-specific training
+User accounts and cloud synchronization
+Puzzle recommendation engine
+More granular tactical explanations
+Personalized coaching based on recurring mistakes
+Progressive Web App (PWA) support
+Larger puzzle corpus
+Data Source
+
+Puzzle data is sourced from the Lichess open puzzle database.
+
+Lichess puzzle data is released under the Creative Commons CC0 public-domain dedication.
+
+See the Lichess database documentation for dataset availability and licensing information.
+
+License
+
+Application source code: MIT License.
+
+Puzzle data: CC0, subject to the terms of the original Lichess dataset.

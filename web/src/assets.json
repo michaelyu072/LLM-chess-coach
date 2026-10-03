@@ -1,0 +1,349 @@
+{
+  "boards": [
+    {
+      "id": "blue",
+      "file": "blue.png",
+      "thumb": "blue.thumbnail.png",
+      "coordWhite": "#dee3e6",
+      "coordBlack": "#788a94"
+    },
+    {
+      "id": "blue2",
+      "file": "blue2.jpg",
+      "thumb": "blue2.thumbnail.jpg",
+      "coordWhite": "#97b2c7",
+      "coordBlack": "#546f82"
+    },
+    {
+      "id": "blue3",
+      "file": "blue3.jpg",
+      "thumb": "blue3.thumbnail.jpg",
+      "coordWhite": "#d9e0e6",
+      "coordBlack": "#315991"
+    },
+    {
+      "id": "blue-marble",
+      "file": "blue-marble.jpg",
+      "thumb": "blue-marble.thumbnail.jpg",
+      "coordWhite": "#eae6dd",
+      "coordBlack": "#7c7f87"
+    },
+    {
+      "id": "canvas",
+      "file": "canvas2.jpg",
+      "thumb": "canvas2.thumbnail.jpg",
+      "coordWhite": "#d7daeb",
+      "coordBlack": "#547388"
+    },
+    {
+      "id": "wood",
+      "file": "wood.jpg",
+      "thumb": "wood.thumbnail.jpg",
+      "coordWhite": "#d8a45b",
+      "coordBlack": "#9b4d0f"
+    },
+    {
+      "id": "wood2",
+      "file": "wood2.jpg",
+      "thumb": "wood2.thumbnail.jpg",
+      "coordWhite": "#a38b5d",
+      "coordBlack": "#6c5017"
+    },
+    {
+      "id": "wood3",
+      "file": "wood3.jpg",
+      "thumb": "wood3.thumbnail.jpg",
+      "coordWhite": "#d0ceca",
+      "coordBlack": "#755839"
+    },
+    {
+      "id": "wood4",
+      "file": "wood4.jpg",
+      "thumb": "wood4.thumbnail.jpg",
+      "coordWhite": "#caaf7d",
+      "coordBlack": "#7b5330"
+    },
+    {
+      "id": "maple",
+      "file": "maple.jpg",
+      "thumb": "maple.thumbnail.jpg",
+      "coordWhite": "#e8ceab",
+      "coordBlack": "#bc7944"
+    },
+    {
+      "id": "maple2",
+      "file": "maple2.jpg",
+      "thumb": "maple2.thumbnail.jpg",
+      "coordWhite": "#e2c89f",
+      "coordBlack": "#963"
+    },
+    {
+      "id": "leather",
+      "file": "leather.jpg",
+      "thumb": "leather.thumbnail.jpg",
+      "coordWhite": "#d1d1c9",
+      "coordBlack": "#c28e16"
+    },
+    {
+      "id": "green",
+      "file": "green.png",
+      "thumb": "green.thumbnail.png",
+      "coordWhite": "#ffd",
+      "coordBlack": "#6d8753"
+    },
+    {
+      "id": "brown",
+      "file": "brown.png",
+      "thumb": "brown.thumbnail.png",
+      "coordWhite": "#f0d9b5",
+      "coordBlack": "#946f51"
+    },
+    {
+      "id": "pink",
+      "file": "pink-pyramid.png",
+      "thumb": "pink-pyramid.thumbnail.png",
+      "coordWhite": "#e8e9b7",
+      "coordBlack": "#ed7272"
+    },
+    {
+      "id": "marble",
+      "file": "marble.jpg",
+      "thumb": "marble.thumbnail.jpg",
+      "coordWhite": "#93ab91",
+      "coordBlack": "#4f644e"
+    },
+    {
+      "id": "green-plastic",
+      "file": "green-plastic.png",
+      "thumb": "green-plastic.thumbnail.png",
+      "coordWhite": "#f2f9bb",
+      "coordBlack": "#59935d"
+    },
+    {
+      "id": "grey",
+      "file": "grey.jpg",
+      "thumb": "grey.thumbnail.jpg",
+      "coordWhite": "#b8b8b8",
+      "coordBlack": "#7d7d7d"
+    },
+    {
+      "id": "metal",
+      "file": "metal.jpg",
+      "thumb": "metal.thumbnail.jpg",
+      "coordWhite": "#c9c9c9",
+      "coordBlack": "#727272"
+    },
+    {
+      "id": "olive",
+      "file": "olive.jpg",
+      "thumb": "olive.thumbnail.jpg",
+      "coordWhite": "#b8b19f",
+      "coordBlack": "#6d6655"
+    },
+    {
+      "id": "newspaper",
+      "file": "newspaper.svg",
+      "thumb": "newspaper.svg",
+      "coordWhite": "#fff",
+      "coordBlack": "#8d8d8d"
+    },
+    {
+      "id": "purple",
+      "file": "purple.png",
+      "thumb": "purple.thumbnail.png",
+      "coordWhite": "#9f90b0",
+      "coordBlack": "#7d4a8d"
+    },
+    {
+      "id": "purple-diag",
+      "file": "purple-diag.png",
+      "thumb": "purple-diag.thumbnail.png",
+      "coordWhite": "#e5daf0",
+      "coordBlack": "#957ab0"
+    },
+    {
+      "id": "ic",
+      "file": "ic.png",
+      "thumb": "ic.thumbnail.png",
+      "coordWhite": "#ececec",
+      "coordBlack": "#c1c18e"
+    },
+    {
+      "id": "horsey",
+      "file": "horsey.jpg",
+      "thumb": "horsey.thumbnail.jpg",
+      "coordWhite": "#f0d9b5",
+      "coordBlack": "#946f51"
+    }
+  ],
+  "pieces": [
+    {
+      "id": "alpha",
+      "ext": "svg"
+    },
+    {
+      "id": "anarcandy",
+      "ext": "svg"
+    },
+    {
+      "id": "caliente",
+      "ext": "svg"
+    },
+    {
+      "id": "california",
+      "ext": "svg"
+    },
+    {
+      "id": "cardinal",
+      "ext": "svg"
+    },
+    {
+      "id": "cburnett",
+      "ext": "svg"
+    },
+    {
+      "id": "celtic",
+      "ext": "svg"
+    },
+    {
+      "id": "chess7",
+      "ext": "svg"
+    },
+    {
+      "id": "chessnut",
+      "ext": "svg"
+    },
+    {
+      "id": "companion",
+      "ext": "svg"
+    },
+    {
+      "id": "cooke",
+      "ext": "svg"
+    },
+    {
+      "id": "disguised",
+      "ext": "svg"
+    },
+    {
+      "id": "dubrovny",
+      "ext": "svg"
+    },
+    {
+      "id": "fantasy",
+      "ext": "svg"
+    },
+    {
+      "id": "firi",
+      "ext": "svg"
+    },
+    {
+      "id": "fresca",
+      "ext": "svg"
+    },
+    {
+      "id": "gioco",
+      "ext": "svg"
+    },
+    {
+      "id": "governor",
+      "ext": "svg"
+    },
+    {
+      "id": "horsey",
+      "ext": "svg"
+    },
+    {
+      "id": "icpieces",
+      "ext": "svg"
+    },
+    {
+      "id": "kiwen-suwi",
+      "ext": "svg"
+    },
+    {
+      "id": "kosal",
+      "ext": "svg"
+    },
+    {
+      "id": "leipzig",
+      "ext": "svg"
+    },
+    {
+      "id": "letter",
+      "ext": "svg"
+    },
+    {
+      "id": "maestro",
+      "ext": "svg"
+    },
+    {
+      "id": "merida",
+      "ext": "svg"
+    },
+    {
+      "id": "minimal-warmth",
+      "ext": "svg"
+    },
+    {
+      "id": "monarchy",
+      "ext": "webp"
+    },
+    {
+      "id": "mpchess",
+      "ext": "svg"
+    },
+    {
+      "id": "papercut",
+      "ext": "svg"
+    },
+    {
+      "id": "pirouetti",
+      "ext": "svg"
+    },
+    {
+      "id": "pixel",
+      "ext": "svg"
+    },
+    {
+      "id": "reillycraig",
+      "ext": "svg"
+    },
+    {
+      "id": "rhosgfx",
+      "ext": "svg"
+    },
+    {
+      "id": "riohacha",
+      "ext": "svg"
+    },
+    {
+      "id": "shahi-ivory-brown",
+      "ext": "svg"
+    },
+    {
+      "id": "shapes",
+      "ext": "svg"
+    },
+    {
+      "id": "spatial",
+      "ext": "svg"
+    },
+    {
+      "id": "staunty",
+      "ext": "svg"
+    },
+    {
+      "id": "tatiana",
+      "ext": "svg"
+    },
+    {
+      "id": "totoy",
+      "ext": "svg"
+    },
+    {
+      "id": "xkcd",
+      "ext": "svg"
+    }
+  ]
+}

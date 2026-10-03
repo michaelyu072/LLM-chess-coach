@@ -1,0 +1,13 @@
+node_modules
+dist
+# generated from ../lila by `npm run assets`; committed so the app builds
+# without the lila clone (the script skips copying when lila is absent)
+# copied from node_modules / downloaded by `npm run assets`
+public/stockfish
+
+# local secrets (API keys)
+.env*.local
+
+# Cloudflare (wrangler) local state and local-only secrets
+.wrangler
+.dev.vars*
