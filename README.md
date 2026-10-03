@@ -4,6 +4,8 @@ A chess puzzle trainer with an AI coach you can ask about any position.
 
 **Live demo: [chess-puzzle-coach.michaelyu.workers.dev](https://chess-puzzle-coach.michaelyu.workers.dev/)**
 
+**Demo video: [watch on Google Drive](https://drive.google.com/file/d/1bzmhd3Oa7wErZ9kHn1kbpECNOYdNKXAQ/view?usp=sharing)**
+
 Solve curated puzzles from the Lichess database, get progressive hints when you're stuck, explore any position on a free analysis board, and ask the coach questions like "why not take the rook?". The coach's answers are checked against a real chess engine, so it explains what's actually true in the position instead of guessing.
 
 ## Features
