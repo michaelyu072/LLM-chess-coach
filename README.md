@@ -10,7 +10,7 @@ Solve curated puzzles from the Lichess database, get progressive hints when you'
 
 ## Features
 
-- **1,000 curated puzzles** from the Lichess puzzle database, filterable by tactical theme (forks, pins, skewers, …) and rating
+- **100,000 curated puzzles** from the Lichess puzzle database, filterable by tactical theme (forks, pins, skewers, …) and rating
 - **Progressive help:** after wrong attempts you get a hint about the idea, then which piece to move, then the solution
 - **AI coach chat** on both the puzzle and the analysis board. It sees the position you're looking at, gives hints without spoiling unsolved puzzles, and explains plans and tactics
 - **Stockfish in the browser** for live evaluation and analysis, no server needed
@@ -36,7 +36,7 @@ Solve curated puzzles from the Lichess database, get progressive hints when you'
                     └─────────────────────┘        └──────────────┘
 ```
 
-- **Puzzles are prepared ahead of time.** A small Python pipeline filters the 6.1 million Lichess puzzles by quality (well-rated, popular, widely played, not trivial), then picks 1,000 spread across tactical themes and exports them as a static file. Checking your moves is deterministic: they're compared to the known solution, with no AI involved.
+- **Puzzles are prepared ahead of time.** A small Python pipeline filters the 6.1 million Lichess puzzles by quality (well-rated, popular, widely played, not trivial), then picks 100,000 spread across tactical themes. They're exported as static files: a compact index the app filters on, plus shards of 1,000 puzzles that load only when a puzzle from them is shown. Checking your moves is deterministic: they're compared to the known solution, with no AI involved.
 - **The chess engine runs in your browser.** Stockfish is compiled to WebAssembly and analyzes positions on your own device, so analysis is instant and free.
 - **The engine grounds the coach.** Each question is sent along with the position and Stockfish's evaluation. If the coach wants to check a move you didn't mention, it asks the browser to run Stockfish on that move before answering. The language model explains the ideas; the engine supplies the facts.
 - **The key stays private.** The site and a small proxy are both served by one Cloudflare Worker. The proxy adds the Gemini API key server-side and limits how many requests each visitor can make, so the free-tier key can't be extracted or drained.

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import type { AnalysisRequest } from './position';
 import { PuzzleView } from './PuzzleView';
+import { loadIndex, loadPuzzle, type PuzzleIndex } from './puzzleStore';
 import type { Puzzle } from './session';
 import { SettingsPanel } from './SettingsPanel';
 import { loadAttempts, saveAttempts, summarize, type Attempt, type Result, type Settings } from './storage';
@@ -25,65 +26,81 @@ interface Props {
 }
 
 export function PuzzlesTab({ active, settings, setSettings, onPuzzleChange, onBoardSize, onPosition, onAnalyze }: Props) {
-  const [puzzles, setPuzzles] = useState<Puzzle[] | null>(null);
+  const [index, setIndex] = useState<PuzzleIndex | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadingPuzzle, setLoadingPuzzle] = useState(false);
   const [attempts, setAttempts] = useState<Attempt[]>(loadAttempts);
   const [theme, setTheme] = useState('all');
   const [band, setBand] = useState('all');
   const [current, setCurrent] = useState<Puzzle | null>(null);
 
   useEffect(() => {
-    fetch('/puzzles.json')
-      .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then(setPuzzles)
+    loadIndex()
+      .then(setIndex)
       .catch(e => setError(String(e)));
   }, []);
 
   useEffect(() => saveAttempts(attempts), [attempts]);
   useEffect(() => onPuzzleChange(current), [current, onPuzzleChange]);
 
+  // Theme options: every theme that is some puzzle's primary theme, counted over all
+  // puzzles tagged with it, plus the untagged mix. Same rules as before, on index codes.
   const themeOptions = useMemo(() => {
-    if (!puzzles) return [];
-    const counts = new Map<string, number>();
-    const primaries = new Set(puzzles.map(p => p.primary_theme));
-    for (const p of puzzles) for (const t of p.themes) if (primaries.has(t)) counts.set(t, (counts.get(t) ?? 0) + 1);
-    counts.set('mixed', puzzles.filter(p => p.primary_theme === 'mixed').length);
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  }, [puzzles]);
+    if (!index) return [];
+    const mixed = index.themes.indexOf('mixed');
+    const primaries = new Set(index.primary);
+    const counts = new Map<number, number>();
+    for (const tags of index.tags) for (const t of tags) if (primaries.has(t)) counts.set(t, (counts.get(t) ?? 0) + 1);
+    counts.set(mixed, index.primary.filter(p => p === mixed).length);
+    return [...counts.entries()].map(([t, n]) => [index.themes[t], n] as const).sort((a, b) => b[1] - a[1]);
+  }, [index]);
 
+  /** Positions in the index of the puzzles matching the filters. */
   const filtered = useMemo(() => {
-    if (!puzzles) return [];
+    if (!index) return [];
     const [lo, hi] = RATING_BANDS[band];
-    return puzzles.filter(
-      p =>
-        p.rating >= lo &&
-        p.rating <= hi &&
-        (theme === 'all' || (theme === 'mixed' ? p.primary_theme === 'mixed' : p.themes.includes(theme))),
-    );
-  }, [puzzles, theme, band]);
+    const code = index.themes.indexOf(theme);
+    const out: number[] = [];
+    for (let i = 0; i < index.count; i++) {
+      const r = index.rating[i];
+      if (r < lo || r > hi) continue;
+      if (theme !== 'all' && !(theme === 'mixed' ? index.primary[i] === code : index.tags[i].includes(code))) continue;
+      out.push(i);
+    }
+    return out;
+  }, [index, theme, band]);
 
   const attemptedIds = useMemo(() => new Set(attempts.map(a => a.id)), [attempts]);
-  const remaining = filtered.filter(p => !attemptedIds.has(p.id)).length;
+  const remaining = index ? filtered.filter(i => !attemptedIds.has(index.id[i])).length : 0;
 
+  // Puzzles load asynchronously (their shard may need downloading); only the
+  // latest request may set the current puzzle.
+  const request = useRef(0);
   const pickNext = useCallback(() => {
-    if (!filtered.length) return setCurrent(null);
-    const fresh = filtered.filter(p => !attemptedIds.has(p.id) && p.id !== current?.id);
+    if (!index || !filtered.length) return setCurrent(null);
+    const fresh = filtered.filter(i => !attemptedIds.has(index.id[i]) && index.id[i] !== current?.id);
     const pool = fresh.length ? fresh : filtered;
-    setCurrent(pool[Math.floor(Math.random() * pool.length)]);
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const mine = ++request.current;
+    setLoadingPuzzle(true);
+    loadPuzzle(index, pick)
+      .then(p => mine === request.current && setCurrent(p))
+      .catch(e => mine === request.current && setError(String(e)))
+      .finally(() => mine === request.current && setLoadingPuzzle(false));
     // attemptedIds intentionally read at call time only
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtered]);
+  }, [index, filtered]);
 
   // New puzzle whenever the filter changes (and on first load). Keyed on the
   // filter itself rather than on pickNext: a hot reload re-runs effects and
   // recreates callbacks, which would otherwise swap in a random new puzzle.
   const pickedFor = useRef<string | null>(null);
   useEffect(() => {
-    const key = puzzles ? `${theme}|${band}|${puzzles.length}` : null;
+    const key = index ? `${theme}|${band}|${index.count}` : null;
     if (key === pickedFor.current) return;
     pickedFor.current = key;
     pickNext();
-  }, [puzzles, theme, band, pickNext]);
+  }, [index, theme, band, pickNext]);
 
   const onFinish = useCallback(
     (result: Result, meta: { wrong: number; hints: number; ms: number }) => {
@@ -97,7 +114,7 @@ export function PuzzlesTab({ active, settings, setSettings, onPuzzleChange, onBo
   const recent = attempts.slice(-12);
 
   if (error) return <p className="error">Could not load puzzles: {error}</p>;
-  if (!puzzles) return <p className="loading">Loading puzzles…</p>;
+  if (!index || (!current && loadingPuzzle)) return <p className="loading">Loading puzzles…</p>;
   if (!current)
     return (
       <p className="muted">
@@ -124,10 +141,10 @@ export function PuzzlesTab({ active, settings, setSettings, onPuzzleChange, onBo
         <label>
           Theme
           <select value={theme} onChange={e => setTheme(e.target.value)}>
-            <option value="all">All themes ({puzzles.length})</option>
+            <option value="all">All themes ({index.count.toLocaleString()})</option>
             {themeOptions.map(([t, n]) => (
               <option key={t} value={t}>
-                {t === 'mixed' ? 'Untagged mix' : themeName(t)} ({n})
+                {t === 'mixed' ? 'Untagged mix' : themeName(t)} ({n.toLocaleString()})
               </option>
             ))}
           </select>
@@ -143,7 +160,7 @@ export function PuzzlesTab({ active, settings, setSettings, onPuzzleChange, onBo
           </select>
         </label>
         <p className="muted">
-          {remaining} of {filtered.length} unplayed in this selection
+          {remaining.toLocaleString()} of {filtered.length.toLocaleString()} unplayed in this selection
         </p>
       </section>
 
