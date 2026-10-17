@@ -1388,6 +1388,30 @@ button {
 .walk-done:hover {
   background: var(--green-hover);
 }
+.walk-end {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+.walk-end .walk-done {
+  margin-left: 0;
+}
+.walk-end button {
+  white-space: normal;
+}
+.walk-back {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bright);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.walk-back:hover {
+  border-color: var(--muted);
+}
 /* On a small board the note would hide too many pieces: show it as a caption
    just under the board instead (over the side panel, which is idle meanwhile). */
 @container (max-width: 480px) {

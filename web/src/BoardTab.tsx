@@ -349,8 +349,9 @@ export function BoardTab({ active, settings, setSettings, puzzle, onPosition, an
     });
   }, [mode, node, playPos, orientation, resync]);
 
-  // Open a line sent from elsewhere (the Puzzles tab's Analyze button): play
-  // mode, positioned on the requested move, engine on. Undoable like any change.
+  // Open a line sent from elsewhere (the Puzzles tab's Analyze button, or a
+  // coach's line the user kept): play mode, positioned on the requested move,
+  // engine on. Undoable like any change.
   useEffect(() => {
     if (!analysisRequest?.nodes.length) return;
     remember();
@@ -358,9 +359,18 @@ export function BoardTab({ active, settings, setSettings, puzzle, onPosition, an
     setPromotion(null);
     setFenDraft(null);
     setFenError(null);
-    setNodes(analysisRequest.nodes.map(n => ({ ...n, lastMove: n.lastMove as [Key, Key] | undefined })));
-    setCur(Math.min(analysisRequest.ply, analysisRequest.nodes.length - 1));
-    setOrientation(analysisRequest.orientation);
+    const incoming: Node[] = analysisRequest.nodes.map(n => ({ ...n, lastMove: n.lastMove as [Key, Key] | undefined }));
+    const now = latest.current;
+    if (analysisRequest.append && now.mode === 'play' && now.nodes[now.cur]?.fen === incoming[0].fen) {
+      // A coach's line kept from the current position: play it on, dropping any moves after this one.
+      setNodes([...now.nodes.slice(0, now.cur + 1), ...incoming.slice(1)]);
+      setCur(now.cur + incoming.length - 1);
+    } else {
+      setNodes(incoming);
+      setCur(Math.min(analysisRequest.ply, incoming.length - 1));
+      // A line kept on this tab (e.g. from the editor) keeps the board's orientation.
+      if (!analysisRequest.append) setOrientation(analysisRequest.orientation);
+    }
     setMode('play');
     setAnalysis(true);
     // Only a new request (new id) should load; the helpers are stable enough.

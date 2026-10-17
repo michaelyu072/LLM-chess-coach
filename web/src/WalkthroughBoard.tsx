@@ -11,6 +11,10 @@ interface Props {
   line: Walkthrough;
   sound: boolean;
   onClose: () => void;
+  /** Keep the position the line ends in, instead of going back. */
+  onKeep: () => void;
+  /** Label for the keep button (the Puzzles tab keeps it on the Board tab). */
+  keepLabel: string;
 }
 
 /** Squares that hold a piece, as "file,rank" (0-7 each). */
@@ -71,7 +75,7 @@ function bubblePlacement(step: WalkStep, flipped: boolean): { className: string;
  * view-only board laid exactly on top, so the puzzle or analysis underneath is
  * untouched and closing it puts the user back where they were.
  */
-export function WalkthroughBoard({ line, sound, onClose }: Props) {
+export function WalkthroughBoard({ line, sound, onClose, onKeep, keepLabel }: Props) {
   // The visible tab's board; both tabs stay mounted, so pick the one showing.
   const [frame] = useState(() => document.querySelector<HTMLElement>('.tabpanel:not(.tabpanel-hidden) .board-frame'));
   const [flipped] = useState(() => Boolean(frame?.querySelector('.cg-wrap.orientation-black')));
@@ -211,16 +215,22 @@ export function WalkthroughBoard({ line, sound, onClose }: Props) {
             <span className="walk-count">
               {idx + 1} / {line.steps.length}
             </span>
-            {atEnd ? (
-              <button className="walk-done" onClick={onClose}>
-                Back to my position
-              </button>
-            ) : (
+            {!atEnd && (
               <button className="walk-done" onClick={() => go(idx + 1)}>
                 Next
               </button>
             )}
           </div>
+          {atEnd && (
+            <div className="walk-end">
+              <button className="walk-back" onClick={onClose} title="Close the line and return to where you were (Esc)">
+                Back to my position
+              </button>
+              <button className="walk-done" onClick={onKeep} title="Play these moves on the board and continue from here">
+                {keepLabel}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>,

@@ -162,4 +162,9 @@ export interface AnalysisRequest {
   /** Index of the node to show first. */
   ply: number;
   orientation: 'white' | 'black';
+  /**
+   * Continue the Board tab's game instead of replacing it: the moves after
+   * nodes[0] are played from the current position, if that is nodes[0].
+   */
+  append?: boolean;
 }

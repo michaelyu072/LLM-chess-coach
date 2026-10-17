@@ -4,7 +4,7 @@ import { BoardTab } from './BoardTab';
 import type { CoachContext } from './coach';
 import { CoachChat } from './CoachChat';
 import { PuzzlesTab } from './PuzzlesTab';
-import type { AnalysisRequest } from './position';
+import { posFromFen, type AnalysisRequest } from './position';
 import type { Puzzle } from './session';
 import { loadSettings, saveSettings, type Settings } from './storage';
 import type { Walkthrough } from './walkthrough';
@@ -131,6 +131,22 @@ export function App() {
   }, [shownFen]);
   useEffect(() => setWalkthrough(null), [tab]);
   const closeWalkthrough = useCallback(() => setWalkthrough(null), []);
+  // Keep the position the line ends in: continue the Board tab's game with it,
+  // or, from a puzzle (which can't change), open the line on the Board tab.
+  const keepWalkthrough = () => {
+    if (!walkthrough) return;
+    const start = posFromFen(walkthrough.startFen);
+    onAnalyze({
+      nodes: [
+        { fen: walkthrough.startFen, check: start.isCheck() ? start.turn : false },
+        ...walkthrough.steps.map(s => ({ fen: s.fen, san: s.san, lastMove: [s.from, s.to] as [string, string], check: s.check })),
+      ],
+      ply: walkthrough.steps.length,
+      orientation: puzzle?.player_color ?? 'white',
+      append: tab === 'board',
+    });
+    setWalkthrough(null);
+  };
 
   return (
     <div className="app" style={boardSize ? ({ '--board-size': `${boardSize}px` } as CSSProperties) : undefined}>
@@ -176,7 +192,14 @@ export function App() {
       </div>
 
       {walkthrough && (
-        <WalkthroughBoard key={walkthrough.id} line={walkthrough} sound={settings.sound} onClose={closeWalkthrough} />
+        <WalkthroughBoard
+          key={walkthrough.id}
+          line={walkthrough}
+          sound={settings.sound}
+          onClose={closeWalkthrough}
+          onKeep={keepWalkthrough}
+          keepLabel={tab === 'board' ? 'Keep this position' : 'Continue on Board tab'}
+        />
       )}
       <CoachChat context={coachContext} activeLine={walkthrough} onShowLine={setWalkthrough} />
     </div>
