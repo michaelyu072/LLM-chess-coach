@@ -13,6 +13,7 @@ Solve curated puzzles from the Lichess database, get progressive hints when you'
 - **100,000 curated puzzles** from the Lichess puzzle database, filterable by tactical theme (forks, pins, skewers, …) and rating
 - **Progressive help:** after wrong attempts you get a hint about the idea, then which piece to move, then the solution
 - **AI coach chat** on both the puzzle and the analysis board. It sees the position you're looking at, gives hints without spoiling unsolved puzzles, and explains plans and tactics
+- **Show me on the board:** when a line is worth seeing, the coach adds a button that plays it move by move over your board, with a short note beside each move. Every reply in the line is checked against Stockfish first
 - **Stockfish in the browser** for live evaluation and analysis, no server needed
 - **Progress tracking:** accuracy, streaks and history, saved in your browser
 - Board and piece themes and move sounds from Lichess

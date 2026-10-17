@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { CoachConversation, contextLabel, describeError, isAbort, type ChatMessage, type CoachContext } from './coach';
 import { Markdown } from './Markdown';
+import { lineText, type Walkthrough } from './walkthrough';
 
 const SUGGESTIONS: Record<CoachContext['source'], string[]> = {
   puzzle: ['Give me a hint', 'What should I be looking for?', 'Why was my move wrong?'],
@@ -9,8 +10,16 @@ const SUGGESTIONS: Record<CoachContext['source'], string[]> = {
 
 let nextId = 1;
 
+interface Props {
+  context: CoachContext | null;
+  /** The coach's line being played on the board right now, if any. */
+  activeLine: Walkthrough | null;
+  /** Play a line on the board, or (null) go back to the user's position. */
+  onShowLine: (line: Walkthrough | null) => void;
+}
+
 /** Floating chat panel (bottom-right) about whatever position is on screen. */
-export function CoachChat({ context }: { context: CoachContext | null }) {
+export function CoachChat({ context, activeLine, onShowLine }: Props) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
@@ -18,6 +27,7 @@ export function CoachChat({ context }: { context: CoachContext | null }) {
   const [streaming, setStreaming] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const conversation = useRef(new CoachConversation());
+  const panelEl = useRef<HTMLElement>(null);
   const listEl = useRef<HTMLDivElement>(null);
   const inputEl = useRef<HTMLTextAreaElement>(null);
   const abort = useRef<AbortController>();
@@ -58,7 +68,7 @@ export function CoachChat({ context }: { context: CoachContext | null }) {
         onText: setStreaming,
         onStatus: setStatus,
       });
-      if (convo === conversation.current) setMessages(m => [...m, { id: nextId++, role: 'coach', text: reply }]);
+      if (convo === conversation.current) setMessages(m => [...m, { id: nextId++, role: 'coach', ...reply }]);
     } catch (e) {
       if (!isAbort(e) && convo === conversation.current)
         setMessages(m => [...m, { id: nextId++, role: 'coach', text: describeError(e) }]);
@@ -76,7 +86,18 @@ export function CoachChat({ context }: { context: CoachContext | null }) {
     send(draft);
   };
 
+  const toggleLine = (line: Walkthrough) => {
+    if (activeLine?.id === line.id) return onShowLine(null);
+    onShowLine(line);
+    // Get out of the way if this panel sits on top of the board (narrow screens).
+    const board = document.querySelector('.tabpanel:not(.tabpanel-hidden) .board-frame')?.getBoundingClientRect();
+    const panel = panelEl.current?.getBoundingClientRect();
+    if (board && panel && panel.left < board.right && panel.right > board.left && panel.top < board.bottom && panel.bottom > board.top)
+      setOpen(false);
+  };
+
   const newChat = () => {
+    onShowLine(null);
     abort.current?.abort();
     conversation.current = new CoachConversation();
     setPending(false);
@@ -96,6 +117,7 @@ export function CoachChat({ context }: { context: CoachContext | null }) {
 
   return (
     <section
+      ref={panelEl}
       className="coach-panel"
       role="dialog"
       aria-label="Coach chat"
@@ -143,6 +165,29 @@ export function CoachChat({ context }: { context: CoachContext | null }) {
             ) : (
               <div className="coach-bubble">{m.text}</div>
             )}
+            {m.line &&
+              (() => {
+                const line = m.line;
+                const showing = activeLine?.id === line.id;
+                // The line starts from the position it was asked about.
+                const stale = !showing && context?.fen !== line.startFen;
+                return (
+                  <button
+                    className={`coach-line${showing ? ' showing' : ''}`}
+                    onClick={() => toggleLine(line)}
+                    disabled={stale}
+                    title={stale ? 'The board has moved on from the position this line starts from' : undefined}
+                  >
+                    <span className="coach-line-icon" aria-hidden="true">
+                      {showing ? '■' : '▶'}
+                    </span>
+                    <span>
+                      <strong>{showing ? 'Back to my position' : 'Show me on the board'}</strong>
+                      <span className="coach-line-moves">{lineText(line)}</span>
+                    </span>
+                  </button>
+                );
+              })()}
           </div>
         ))}
         {pending &&

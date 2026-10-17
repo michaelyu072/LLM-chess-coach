@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, ty
 import { pieceUrl } from './assets';
 import { ENGINE_NAME, formatScore, useEngine, winningChances } from './engine';
 import { PromotionPicker } from './PromotionPicker';
+import { PvMoves } from './PvMoves';
 import {
   CASTLING,
   castlingPossible,
@@ -18,7 +19,6 @@ import {
   editorToFen,
   fenToEditor,
   posFromFen,
-  pvToSan,
   START,
   validate,
   type AnalysisRequest,
@@ -535,15 +535,6 @@ export function BoardTab({ active, settings, setSettings, puzzle, onPosition, an
             className (cg-wrap, orientation-*), and React re-setting it would wipe them. */}
         <div className={`board-frame${mode === 'edit' && tool !== 'move' ? ' tool-active' : ''}`}>
           <div ref={boardEl} className="board" />
-          {mode === 'edit' && (
-            <div
-              ref={trashEl}
-              className={`drop-trash${dragging ? ' visible' : ''}${overTrash ? ' over' : ''}`}
-              aria-hidden={!dragging}
-            >
-              <span className="drop-trash-icon">🗑</span> {overTrash ? 'Release to delete' : 'Drop here to delete'}
-            </div>
-          )}
           {promotion && playPos && <PromotionPicker color={playPos.turn} pieces={settings.pieces} onPick={pickPromotion} />}
         </div>
       </div>
@@ -629,20 +620,28 @@ export function BoardTab({ active, settings, setSettings, puzzle, onPosition, an
                 </div>
                 <ol className="pv-lines">
                   {ev.lines.filter(Boolean).map((l, i) => {
-                    const numbered = lineMoves(ev.fen, pvToSan(ev.fen, l.moves, 8));
                     return (
                       <li key={i}>
-                        <button
+                        {/* A div, not a button: some browsers don't send hover events to a
+                            button's children, and the moves need them for their previews. */}
+                        <div
                           className="pv"
-                          disabled={mode !== 'play'}
-                          title={mode === 'play' ? 'Play this move' : undefined}
-                          onClick={() => commitMove(l.moves[0])}
+                          role="button"
+                          tabIndex={mode === 'play' ? 0 : -1}
+                          aria-disabled={mode !== 'play'}
+                          onClick={() => mode === 'play' && commitMove(l.moves[0])}
+                          onKeyDown={e => {
+                            if (mode === 'play' && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault();
+                              commitMove(l.moves[0]);
+                            }
+                          }}
                         >
-                          <span className="pv-score">{formatScore(l)}</span>
-                          <span className="pv-moves">
-                            {numbered.map(m => (m.number ? `${m.number} ${m.san}` : m.san)).join(' ')}
+                          <span className="pv-score" title={mode === 'play' ? 'Play this move' : undefined}>
+                            {formatScore(l)}
                           </span>
-                        </button>
+                          <PvMoves fen={ev.fen} moves={l.moves} orientation={orientation} />
+                        </div>
                       </li>
                     );
                   })}
@@ -657,7 +656,10 @@ export function BoardTab({ active, settings, setSettings, puzzle, onPosition, an
               <p className="label">Pieces</p>
               {paletteRow('white')}
               {paletteRow('black')}
-              <p className="muted">To remove a piece, drag it onto the delete box under the board (or anywhere off the board).</p>
+              <div ref={trashEl} className={`drop-trash${dragging ? ' visible' : ''}${overTrash ? ' over' : ''}`}>
+                <span className="drop-trash-icon">🗑</span>{' '}
+                {overTrash ? 'Release to delete' : dragging ? 'Drop here to delete' : 'Drag a piece off the board to delete it'}
+              </div>
             </section>
 
             <section className="panel">

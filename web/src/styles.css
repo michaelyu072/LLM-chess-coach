@@ -75,7 +75,7 @@ button {
 .app {
   max-width: 1320px;
   margin: 0 auto;
-  padding: 12px 16px 32px;
+  padding: 12px 16px 16px;
 }
 
 .top {
@@ -108,8 +108,8 @@ button {
   font-size: 0.85rem;
 }
 
-/* Board + side layout: the board is X×X where X = the side panel's static
-   content + the reserved pop-up slot (--board-size, measured in PuzzleView). */
+/* Board + side layout: the board is --board-size square (fit to the window in
+   PuzzleView) and the side panel is just as tall, scrolling what doesn't fit. */
 .layout {
   display: grid;
   grid-template-columns: var(--board-size, min(calc(100vh - 90px), 760px)) 340px;
@@ -175,6 +175,21 @@ button {
   flex-direction: column;
   justify-content: flex-start;
   gap: 12px;
+  height: var(--board-size);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  padding-bottom: 2px; /* room for the last section's shadow */
+}
+.side > * {
+  flex: none;
+}
+@media (max-width: 900px) {
+  .side {
+    height: auto;
+    overflow: visible;
+  }
 }
 .side > section {
   background: var(--panel);
@@ -747,29 +762,22 @@ button {
 
 /* Setup mode: delete box that appears under the board while dragging */
 .drop-trash {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% + 10px);
-  z-index: 5;
-  height: 56px;
+  height: 48px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   border: 2px dashed var(--border);
   border-radius: 6px;
-  background: var(--panel);
   color: var(--muted);
-  font-size: 0.95rem;
-  opacity: 0;
-  transform: translateY(-6px);
-  transition: opacity 0.12s, transform 0.12s, background 0.12s, border-color 0.12s;
+  font-size: 0.85rem;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
   pointer-events: none;
 }
 .drop-trash.visible {
-  opacity: 1;
-  transform: none;
+  border-color: var(--muted);
+  color: var(--text);
 }
 .drop-trash.over {
   border-color: var(--red);
@@ -893,11 +901,11 @@ button {
   text-align: left;
   font-size: 0.85rem;
 }
-.pv:hover:not(:disabled) {
+.pv:hover:not([aria-disabled='true']) {
   background: var(--hover);
 }
-.pv:disabled {
-  cursor: default;
+.pv:not([aria-disabled='true']) {
+  cursor: pointer;
 }
 .pv-score {
   flex: none;
@@ -913,6 +921,24 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.pv-move {
+  border-radius: 3px;
+}
+.pv-move.hovered {
+  background: var(--hover);
+  color: var(--bright);
+}
+.pv-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  pointer-events: none;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: var(--shadow-board), 0 6px 24px rgba(0, 0, 0, 0.45);
 }
 
 /* Board tab action row: Undo + one or two actions */
@@ -1174,4 +1200,206 @@ button {
   color: var(--muted);
   font-size: 0.75rem;
   font-style: italic;
+}
+
+/* "Show me on the board": the button under a coach reply… */
+.coach-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--green);
+  border-radius: 10px;
+  background: var(--green-soft);
+  color: var(--bright);
+  text-align: left;
+  font-size: 0.9rem;
+}
+.coach-line:hover:not(:disabled) {
+  background: var(--green);
+  color: #fff;
+}
+.coach-line.showing {
+  border-color: var(--border);
+  background: var(--panel-2);
+}
+.coach-line:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.coach-line-icon {
+  flex: none;
+  font-size: 0.8rem;
+}
+.coach-line strong {
+  display: block;
+  font-weight: 600;
+}
+.coach-line-moves {
+  display: block;
+  margin-top: 1px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+/* …and the line itself: a view-only board laid over the real one, with a note
+   beside each move. Sizes use cqw (1% of the board's width). */
+.walk {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  container-type: size;
+  cursor: pointer;
+  outline: 3px solid var(--green);
+  outline-offset: 0;
+}
+.walk-exit {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.walk-exit span {
+  font-size: 1rem;
+  line-height: 1;
+}
+.walk-bubble {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: min(190px, 70cqw);
+  max-width: min(300px, 72cqw);
+  padding: 9px 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  cursor: default;
+  animation: walk-pop 0.22s ease-out 0.18s both;
+}
+@keyframes walk-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .walk-bubble {
+    animation: none;
+  }
+}
+/* Tail pointing at the square the piece landed on. */
+.walk-bubble::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-left: 0;
+  transform: rotate(45deg);
+}
+.walk-bubble.above::after {
+  bottom: -7px;
+}
+.walk-bubble.below::after {
+  top: -7px;
+  transform: rotate(225deg);
+}
+.walk-bubble.from-left::after {
+  left: calc(6.25cqw - 7px);
+}
+.walk-bubble.from-right::after {
+  right: calc(6.25cqw - 7px);
+}
+.walk-bubble p {
+  margin: 0;
+}
+.walk-move {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--bright);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.walk-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+}
+.walk-dot.white {
+  background: #f5f5f5;
+}
+.walk-dot.black {
+  background: #1b1b1b;
+}
+.walk-note {
+  margin-top: 3px !important;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  white-space: normal;
+}
+.walk-eval {
+  margin-top: 5px !important;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.walk-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.walk-count {
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.walk-done {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--green);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.walk-done:hover {
+  background: var(--green-hover);
+}
+/* On a small board the note would hide too many pieces: show it as a caption
+   just under the board instead (over the side panel, which is idle meanwhile). */
+@container (max-width: 480px) {
+  .walk-bubble {
+    top: calc(100% + 8px) !important;
+    bottom: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: auto;
+    max-width: none;
+  }
+  .walk-bubble::after {
+    display: none;
+  }
 }

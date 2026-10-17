@@ -5,11 +5,16 @@ import type { ReactNode } from 'react';
 // HTML strings), so model output can't inject markup. Unclosed markers, e.g.
 // mid-stream, simply show as typed until their closing half arrives.
 
-const INLINE = /(\*\*[^*\n]+?\*\*|__[^_\n]+?__|`[^`\n]+`|(?<![\w*])\*[^*\s][^*\n]*?\*(?![\w*]))/g;
+// The last alternative is TeX math ("$a4$"), which models sometimes wrap moves
+// in. Nothing here renders math, so it shows bold, like the moves the coach is
+// asked to bold.
+const INLINE =
+  /(\*\*[^*\n]+?\*\*|__[^_\n]+?__|`[^`\n]+`|(?<![\w*])\*[^*\s][^*\n]*?\*(?![\w*])|\$(?=\S)[^$\n]{1,40}?(?<=\S)\$)/g;
 
 function inline(text: string): ReactNode[] {
   return text.split(INLINE).map((part, i) => {
     if (/^(\*\*|__).+\1$/.test(part)) return <strong key={i}>{inline(part.slice(2, -2))}</strong>;
+    if (/^\$\S.*\$$/.test(part)) return <strong key={i}>{part.slice(1, -1)}</strong>;
     if (/^`.+`$/.test(part)) return <code key={i}>{part.slice(1, -1)}</code>;
     if (/^\*.+\*$/.test(part)) return <em key={i}>{inline(part.slice(1, -1))}</em>;
     return part;

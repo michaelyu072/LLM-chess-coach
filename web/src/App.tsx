@@ -7,6 +7,8 @@ import { PuzzlesTab } from './PuzzlesTab';
 import type { AnalysisRequest } from './position';
 import type { Puzzle } from './session';
 import { loadSettings, saveSettings, type Settings } from './storage';
+import type { Walkthrough } from './walkthrough';
+import { WalkthroughBoard } from './WalkthroughBoard';
 
 const ROLE_NAMES = { P: 'pawn', N: 'knight', B: 'bishop', R: 'rook', Q: 'queen', K: 'king' } as const;
 
@@ -56,6 +58,8 @@ export function App() {
   const [puzzlePos, setPuzzlePos] = useState<{ fen: string; solved: boolean } | null>(null);
   const [boardFen, setBoardFen] = useState<string | null>(null);
   const [analysisRequest, setAnalysisRequest] = useState<AnalysisRequest | null>(null);
+  // A coach's line being played over the board ("Show me on the board").
+  const [walkthrough, setWalkthrough] = useState<Walkthrough | null>(null);
 
   useEffect(() => saveSettings(settings), [settings]);
 
@@ -119,6 +123,15 @@ export function App() {
         ? { source: 'board', fen: boardFen }
         : null;
 
+  // The line belongs to the position it was asked about: drop it when the
+  // board underneath moves on or the other tab is shown.
+  const shownFen = coachContext?.fen;
+  useEffect(() => {
+    setWalkthrough(w => (w && w.startFen === shownFen ? w : null));
+  }, [shownFen]);
+  useEffect(() => setWalkthrough(null), [tab]);
+  const closeWalkthrough = useCallback(() => setWalkthrough(null), []);
+
   return (
     <div className="app" style={boardSize ? ({ '--board-size': `${boardSize}px` } as CSSProperties) : undefined}>
       <style>{themeCss(settings.pieces, settings.board)}</style>
@@ -162,7 +175,10 @@ export function App() {
         </div>
       </div>
 
-      <CoachChat context={coachContext} />
+      {walkthrough && (
+        <WalkthroughBoard key={walkthrough.id} line={walkthrough} sound={settings.sound} onClose={closeWalkthrough} />
+      )}
+      <CoachChat context={coachContext} activeLine={walkthrough} onShowLine={setWalkthrough} />
     </div>
   );
 }

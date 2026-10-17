@@ -3,7 +3,7 @@ import type { Api } from '@lichess-org/chessground/api';
 import type { Key } from '@lichess-org/chessground/types';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { PromotionPicker } from './PromotionPicker';
-import type { AnalysisRequest } from './position';
+import { snapBoardSize, type AnalysisRequest } from './position';
 import { lineMoves, PuzzleSession, type Puzzle } from './session';
 import { playSound, soundForSan } from './sound';
 import type { Result } from './storage';
@@ -31,15 +31,16 @@ interface Props {
 // Progressive coaching: wrong attempt #2 -> hint 1, #3 -> hint 2, #4 -> solution.
 const HINT_AFTER_WRONG = [0, 0, 1, 2];
 const SOLUTION_AFTER_WRONG = 4;
-/** Y: fixed height of the slot the hint / solution box pops into. */
+/** Fixed height of the hint / solution box. */
 const POPUP_HEIGHT = 172;
+/** Space kept under the board, and its smallest size. */
+const BOTTOM_MARGIN = 16;
+const MIN_BOARD = 320;
 
 export function PuzzleView(props: Props) {
   const { puzzle } = props;
   const boardEl = useRef<HTMLDivElement>(null);
   const layoutEl = useRef<HTMLDivElement>(null);
-  const sideEl = useRef<HTMLElement>(null);
-  const popupEl = useRef<HTMLElement>(null);
   const cg = useRef<Api>();
   const [session] = useState(() => new PuzzleSession(puzzle));
   const timers = useRef<number[]>([]);
@@ -208,13 +209,11 @@ export function PuzzleView(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Layout: the board is X×X. The side panel's always-visible content is
-  // X − Y tall; Y (POPUP_HEIGHT + gap) is reserved for the hint / solution
-  // box, so when that pops up the panel reaches exactly X and the board never
-  // resizes. X is derived from the static content, capped by available width.
+  // Layout: the board fills the window's height (or the width left beside the
+  // side panel, if that's smaller), and the side panel matches it, scrolling
+  // whatever doesn't fit.
   useLayoutEffect(() => {
     const layout = layoutEl.current!;
-    const side = sideEl.current!;
     const stacked = window.matchMedia('(max-width: 900px)');
     const measure = () => {
       if (stacked.matches) {
@@ -222,23 +221,24 @@ export function PuzzleView(props: Props) {
         return propsRef.current.onBoardSize?.(null);
       }
       if (!layout.clientWidth) return; // not laid out yet
-      const colGap = parseFloat(getComputedStyle(layout).columnGap) || 0;
-      const rowGap = parseFloat(getComputedStyle(side).rowGap) || 0;
-      const popup = popupEl.current;
-      const staticHeight = side.offsetHeight - (popup ? popup.offsetHeight + rowGap : 0);
-      const x = staticHeight + rowGap + POPUP_HEIGHT;
-      const room = layout.clientWidth - side.offsetWidth - colGap;
-      const size = Math.floor(Math.min(x, room));
+      const style = getComputedStyle(layout);
+      const colGap = parseFloat(style.columnGap) || 0;
+      const sideWidth = parseFloat(style.gridTemplateColumns.split(' ')[1]) || 0;
+      const room = layout.clientWidth - sideWidth - colGap;
+      const top = layout.getBoundingClientRect().top + window.scrollY;
+      const tall = window.innerHeight - top - BOTTOM_MARGIN;
+      const size = snapBoardSize(Math.max(MIN_BOARD, Math.min(tall, room)));
       layout.style.setProperty('--board-size', `${size}px`);
       propsRef.current.onBoardSize?.(size);
     };
     measure();
     const ro = new ResizeObserver(measure);
-    ro.observe(side);
     ro.observe(layout);
+    window.addEventListener('resize', measure);
     stacked.addEventListener('change', measure);
     return () => {
       ro.disconnect();
+      window.removeEventListener('resize', measure);
       stacked.removeEventListener('change', measure);
     };
   }, []);
@@ -332,7 +332,7 @@ export function PuzzleView(props: Props) {
         </div>
       </div>
 
-      <aside className="side" ref={sideEl}>
+      <aside className="side">
         <section className={`feedback feedback-${phase}`}>
           {phase === 'intro' && <p className="headline">Get ready…</p>}
           {phase === 'play' && (
@@ -411,7 +411,7 @@ export function PuzzleView(props: Props) {
 
         {/* Pop-up slot (height Y): the hint while solving, the solution after. */}
         {!done && hint > 0 && (
-          <section className="popup hint" ref={popupEl} style={{ height: POPUP_HEIGHT }}>
+          <section className="popup hint" style={{ height: POPUP_HEIGHT }}>
             <p className="label">Hint {hint}</p>
             <p>
               <strong>{themeName(puzzle.primary_theme)}.</strong> {themeDescription(puzzle.primary_theme)}
@@ -424,7 +424,7 @@ export function PuzzleView(props: Props) {
           </section>
         )}
         {done && (
-          <section className="popup summary" ref={popupEl} style={{ height: POPUP_HEIGHT }}>
+          <section className="popup summary" style={{ height: POPUP_HEIGHT }}>
             <div className="summary-head">
               <p className="label">Solution</p>
               <div className="stepper" role="group" aria-label="Step through the solution">

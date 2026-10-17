@@ -2,9 +2,10 @@
 // and engine lines in SAN. Kept out of BoardTab.tsx so it only exports a
 // component (React Fast Refresh requires that).
 import { Chess, normalizeMove } from 'chessops/chess';
-import { INITIAL_BOARD_FEN, parseBoardFen, parseFen } from 'chessops/fen';
-import { makeSan } from 'chessops/san';
-import type { Color } from 'chessops/types';
+import { chessgroundDests } from 'chessops/compat';
+import { INITIAL_BOARD_FEN, makeFen, parseBoardFen, parseFen } from 'chessops/fen';
+import { makeSan, parseSan } from 'chessops/san';
+import type { Color, Move } from 'chessops/types';
 import { parseSquare, parseUci } from 'chessops/util';
 
 export interface EditorState {
@@ -63,6 +64,31 @@ export function validate(fen: string): { pos?: Chess; error?: string } {
 
 export const posFromFen = (fen: string) => Chess.fromSetup(parseFen(fen).unwrap()).unwrap();
 
+/** A move written in SAN ("Nxe5", "12... O-O", "e8=Q!") or UCI ("g1f3"), if it is legal in `pos`. */
+export function parseMove(pos: Chess, text: string): Move | undefined {
+  const t = text
+    .trim()
+    .replace(/^\d+\s*(?:\.+|…)\s*/, '')
+    .replace(/[!?]+$/, '')
+    .replace(/0-0-0/g, 'O-O-O')
+    .replace(/0-0/g, 'O-O');
+  const san = parseSan(pos, t);
+  if (san) return san;
+  const uci = parseUci(t.toLowerCase());
+  return uci && pos.isLegal(uci) ? uci : undefined;
+}
+
+export function legalMovesSan(pos: Chess): string[] {
+  const out: string[] = [];
+  for (const [from, dests] of chessgroundDests(pos)) {
+    for (const to of dests) {
+      const promo = pos.board.get(parseSquare(from)!)?.role === 'pawn' && /[18]$/.test(to);
+      out.push(makeSan(pos, { from: parseSquare(from)!, to: parseSquare(to)!, promotion: promo ? 'queen' : undefined }));
+    }
+  }
+  return out;
+}
+
 /** SAN for an engine line (UCI moves) from `fen`, stopping at the first illegal move. */
 export function pvToSan(fen: string, uci: string[], max = 10): string[] {
   const pos = posFromFen(fen);
@@ -74,6 +100,48 @@ export function pvToSan(fen: string, uci: string[], max = 10): string[] {
     if (!pos.isLegal(move)) break;
     out.push(makeSan(pos, move));
     pos.play(move);
+  }
+  return out;
+}
+
+/**
+ * The largest board size ≤ px that chessground can fill exactly: it draws the
+ * board in whole multiples of 8 device pixels, so any other size leaves a strip
+ * of the frame showing on the right and bottom. Rounded up to layout's 1/64 px
+ * units, since a frame a hair too small loses a whole step.
+ */
+export function snapBoardSize(px: number): number {
+  const dpr = window.devicePixelRatio || 1;
+  return Math.ceil(((Math.floor((px * dpr) / 8) * 8) / dpr) * 64) / 64;
+}
+
+/** One move of an engine line and the position it leads to. */
+export interface PvStep {
+  san: string;
+  fen: string;
+  from: string;
+  to: string;
+  check: Color | false;
+}
+
+/** pvToSan, but keeping the position after each move (for hover previews). */
+export function pvSteps(fen: string, uci: string[], max = 10): PvStep[] {
+  const pos = posFromFen(fen);
+  const out: PvStep[] = [];
+  for (const u of uci.slice(0, max)) {
+    const parsed = parseUci(u);
+    if (!parsed) break;
+    const move = normalizeMove(pos, parsed);
+    if (!pos.isLegal(move)) break;
+    const san = makeSan(pos, move);
+    pos.play(move);
+    out.push({
+      san,
+      fen: makeFen(pos.toSetup()),
+      from: u.slice(0, 2),
+      to: u.slice(2, 4),
+      check: pos.isCheck() ? pos.turn : false,
+    });
   }
   return out;
 }

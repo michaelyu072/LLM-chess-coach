@@ -5,7 +5,8 @@
 // with the top 3 lines. Moves the question names explicitly ("what about
 // Nxe5?") are played and evaluated up front; for moves described in words,
 // the model can call the `analyze_move` tool, which runs Stockfish here in the
-// browser and returns the evaluation after that move.
+// browser and returns the evaluation after that move. With `show_line` it can
+// attach a short annotated line for the board to play (see walkthrough.ts).
 //
 // Requests go to /api/gemini or /api/anthropic, Vite dev-server proxies that
 // add the API key from web/.env.local (see vite.config.ts), so the key never
@@ -13,14 +14,12 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ApiError, GoogleGenAI, type Content, type Part } from '@google/genai';
 import type { Chess } from 'chessops/chess';
-import { chessgroundDests } from 'chessops/compat';
 import { makeFen } from 'chessops/fen';
-import { makeSan, parseSan } from 'chessops/san';
-import type { Move } from 'chessops/types';
-import { parseSquare, parseUci } from 'chessops/util';
+import { makeSan } from 'chessops/san';
 import { engine, ENGINE_NAME, formatScore, type Evaluation } from './engine';
-import { posFromFen, pvToSan } from './position';
+import { legalMovesSan, parseMove, posFromFen, pvToSan } from './position';
 import { lineMoves } from './session';
+import { checkLine, SHOW_LINE, type Walkthrough } from './walkthrough';
 
 const PROVIDER = __COACH_PROVIDER__;
 export const COACH_ENABLED = PROVIDER !== 'none';
@@ -50,6 +49,13 @@ export interface ChatMessage {
   text: string;
   /** Short label of the position the message was sent from. */
   contextLabel?: string;
+  /** A line the coach offers to play on the board. */
+  line?: Walkthrough;
+}
+
+export interface CoachReply {
+  text: string;
+  line?: Walkthrough;
 }
 
 export function contextLabel(ctx: CoachContext): string {
@@ -69,10 +75,11 @@ Each user message starts with a <context> block describing the position they are
 How to coach:
 - Ground concrete claims (who is better, whether a move works, what the best continuation is) in the Stockfish data you are given. Don't invent evaluations or variations. If you need the evaluation of a move that isn't in the context, call the analyze_move tool.
 - Explain ideas, not just numbers: threats, tactics, weaknesses, plans, and why the engine's move works. Translate evaluations into plain language (e.g. "+1.5" is "White is clearly better, roughly a piece's worth of advantage in practice").
-- Write moves in standard algebraic notation (Nf3, exd5, O-O). Scores are from White's point of view in pawns; "#3" means mate in 3 for White and "#-3" mate in 3 for Black.
+- Write moves in standard algebraic notation and bold them (**Nf3**, **exd5**, **O-O**). Never use LaTeX or $…$ math markup: write **a4**, not $a4$. Scores are from White's point of view in pawns; "#3" means mate in 3 for White and "#-3" mate in 3 for Black.
 - Keep answers short, usually 2 to 5 sentences, unless the user asks for more depth.
+- When seeing the moves played would help ("what if I played…", "why doesn't … work", "show me", "what's the plan"), call show_line with 2 to 6 moves: the move in question followed by Stockfish's replies, each with one short note. Call it before writing your answer, then answer briefly without repeating the notes; the user gets a "Show me on the board" button. Skip it for questions that aren't about a concrete line.
 
-Puzzles: while a puzzle is unsolved, help the user find the answer themselves. Give hints that point at the idea (a weak square, an overloaded piece, a forcing move) rather than stating the solution move, unless the user explicitly asks for the answer. Once the puzzle is solved, discuss the solution freely.`;
+Puzzles: while a puzzle is unsolved, help the user find the answer themselves. Give hints that point at the idea (a weak square, an overloaded piece, a forcing move) rather than stating the solution move, unless the user explicitly asks for the answer. While it is unsolved, use show_line only to show why a move the user tried or asked about fails, never to play the solution. Once the puzzle is solved, discuss the solution freely.`;
 
 const ANALYZE_MOVE = {
   name: 'analyze_move',
@@ -93,27 +100,67 @@ const ANALYZE_MOVE = {
   },
 };
 
-const TOOLS: Anthropic.Beta.BetaTool[] = [
-  {
-    name: ANALYZE_MOVE.name,
-    description: ANALYZE_MOVE.description,
-    input_schema: ANALYZE_MOVE.schema,
-    eager_input_streaming: true,
-  },
-];
+const TOOL_DEFS = [ANALYZE_MOVE, SHOW_LINE];
+
+const TOOLS: Anthropic.Beta.BetaTool[] = TOOL_DEFS.map(t => ({
+  name: t.name,
+  description: t.description,
+  input_schema: t.schema,
+  eager_input_streaming: true,
+}));
 
 const GEMINI_TOOLS = [
   {
-    functionDeclarations: [
-      { name: ANALYZE_MOVE.name, description: ANALYZE_MOVE.description, parametersJsonSchema: ANALYZE_MOVE.schema },
-    ],
+    functionDeclarations: TOOL_DEFS.map(t => ({ name: t.name, description: t.description, parametersJsonSchema: t.schema })),
   },
 ];
 
+/** What one question has learned so far: engine results by FEN, and the line to show, if any. */
+interface Turn {
+  evals: Map<string, Evaluation>;
+  line?: Walkthrough;
+}
+
 /** The move argument of an analyze_move call, or null if the call is malformed. */
-function toolMove(name: string | undefined, input: unknown): string | null {
+function toolMove(input: unknown): string | null {
   const move = (input as { move?: unknown } | null)?.move;
-  return name === ANALYZE_MOVE.name && typeof move === 'string' && move.trim() && move.length <= 16 ? move.trim() : null;
+  return typeof move === 'string' && move.trim() && move.length <= 16 ? move.trim() : null;
+}
+
+/** Run a tool call from either provider here in the browser. */
+async function runTool(
+  name: string | undefined,
+  input: unknown,
+  ctx: CoachContext,
+  turn: Turn,
+  onStatus: (s: string | null) => void,
+): Promise<{ ok: boolean; text: string }> {
+  if (name === ANALYZE_MOVE.name) {
+    const move = toolMove(input);
+    if (!move) return { ok: false, text: `Invalid input: ${JSON.stringify(input)}` };
+    onStatus(`Checking ${move}…`);
+    return analyzeMove(ctx.fen, move, turn);
+  }
+  if (name === SHOW_LINE.name) {
+    onStatus('Setting up the board…');
+    const checked = await checkLine(ctx.fen, input, {
+      evalAt: async fen => {
+        const known = turn.evals.get(fen);
+        if (known) return known;
+        const ev = await engine.evaluate(fen, { multiPv: 3, depth: 14, movetime: 1500 });
+        if (ev) turn.evals.set(fen, ev);
+        return ev;
+      },
+      hideBestMove: ctx.source === 'puzzle' && !ctx.puzzle?.solved,
+    });
+    if (!checked.ok) return { ok: false, text: checked.error };
+    turn.line = checked.line;
+    return {
+      ok: true,
+      text: `Done: the user now has a "Show me on the board" button that plays these ${checked.line.steps.length} moves with your notes. Now give your short answer; do not repeat the notes.`,
+    };
+  }
+  return { ok: false, text: `Unknown tool: ${String(name)}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -156,27 +203,8 @@ function describeEval(ev: Evaluation): string {
   return `Stockfish (${ENGINE_NAME}, depth ${ev.depth}): ${formatScore(ev.lines[0])}\nTop lines:\n${lines.join('\n')}`;
 }
 
-function parseMove(pos: Chess, text: string): Move | undefined {
-  const t = text.trim().replace(/[!?]+$/, '').replace(/0-0-0/g, 'O-O-O').replace(/0-0/g, 'O-O');
-  const san = parseSan(pos, t);
-  if (san) return san;
-  const uci = parseUci(t.toLowerCase());
-  return uci && pos.isLegal(uci) ? uci : undefined;
-}
-
-function legalMovesSan(pos: Chess): string[] {
-  const out: string[] = [];
-  for (const [from, dests] of chessgroundDests(pos)) {
-    for (const to of dests) {
-      const promo = pos.board.get(parseSquare(from)!)?.role === 'pawn' && /[18]$/.test(to);
-      out.push(makeSan(pos, { from: parseSquare(from)!, to: parseSquare(to)!, promotion: promo ? 'queen' : undefined }));
-    }
-  }
-  return out;
-}
-
 /** Play `moveText` from `fen` and evaluate the result. Used by both the up-front scan and the tool. */
-async function analyzeMove(fen: string, moveText: string): Promise<{ ok: boolean; san?: string; text: string }> {
+async function analyzeMove(fen: string, moveText: string, turn?: Turn): Promise<{ ok: boolean; san?: string; text: string }> {
   const pos = posFromFen(fen);
   const move = parseMove(pos, moveText);
   if (!move)
@@ -192,6 +220,7 @@ async function analyzeMove(fen: string, moveText: string): Promise<{ ok: boolean
   const over = gameOverText(pos);
   if (over) return { ok: true, san, text: `After ${label}: ${over}` };
   const ev = await engine.evaluate(after, { multiPv: 3, depth: 16 });
+  if (ev) turn?.evals.set(after, ev);
   if (!ev) return { ok: true, san, text: `After ${label} (FEN ${after}): Stockfish is unavailable.` };
   return { ok: true, san, text: `After ${label} (FEN ${after}):\n${describeEval(ev)}` };
 }
@@ -212,7 +241,7 @@ function mentionedMoves(question: string, pos: Chess): string[] {
   return [...found.keys()];
 }
 
-export async function buildContext(ctx: CoachContext, question: string, onStatus: (s: string | null) => void): Promise<string> {
+async function buildContext(ctx: CoachContext, question: string, turn: Turn, onStatus: (s: string | null) => void): Promise<string> {
   const pos = posFromFen(ctx.fen);
   const out: string[] = [
     `Position (FEN): ${ctx.fen}`,
@@ -233,11 +262,13 @@ export async function buildContext(ctx: CoachContext, question: string, onStatus
   if (over) out.push(over);
   else {
     onStatus('Analyzing the position with Stockfish…');
-    const ev = await engine.evaluate(ctx.fen);
+    // Three lines, so a line the coach wants to show can be checked against them.
+    const ev = await engine.evaluate(ctx.fen, { multiPv: 3 });
+    if (ev) turn.evals.set(ctx.fen, ev);
     out.push(ev ? describeEval(ev) : 'Stockfish evaluation unavailable.');
     for (const san of over ? [] : mentionedMoves(question, pos)) {
       onStatus(`Checking ${san}…`);
-      out.push(`Move mentioned by the user:\n${(await analyzeMove(ctx.fen, san)).text}`);
+      out.push(`Move mentioned by the user:\n${(await analyzeMove(ctx.fen, san, turn)).text}`);
     }
   }
   onStatus(null);
@@ -286,10 +317,11 @@ export class CoachConversation {
   private claudeHistory: Anthropic.Beta.BetaMessageParam[] = [];
   private geminiHistory: Content[] = [];
 
-  async send(question: string, ctx: CoachContext, cb: SendCallbacks): Promise<string> {
-    if (!COACH_ENABLED) return SETUP_HELP;
+  async send(question: string, ctx: CoachContext, cb: SendCallbacks): Promise<CoachReply> {
+    if (!COACH_ENABLED) return { text: SETUP_HELP };
 
-    const context = await buildContext(ctx, question, cb.onStatus);
+    const turn: Turn = { evals: new Map() };
+    const context = await buildContext(ctx, question, turn, cb.onStatus);
     if (cb.signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
     const history = PROVIDER === 'gemini' ? this.geminiHistory : this.claudeHistory;
@@ -297,9 +329,12 @@ export class CoachConversation {
     try {
       const answer =
         PROVIDER === 'gemini'
-          ? await this.sendGemini(`<context>\n${context}\n</context>`, question, ctx, cb)
-          : await this.sendClaude(`<context>\n${context}\n</context>`, question, ctx, cb);
-      return answer.trim() || '(The coach returned no text.)';
+          ? await this.sendGemini(`<context>\n${context}\n</context>`, question, ctx, turn, cb)
+          : await this.sendClaude(`<context>\n${context}\n</context>`, question, ctx, turn, cb);
+      return {
+        text: answer.trim() || (turn.line ? 'Here’s the line on the board.' : '(The coach returned no text.)'),
+        line: turn.line,
+      };
     } catch (e) {
       // Leave the history as it was before this question so the next one can
       // continue cleanly (the failed turn is simply not part of the chat).
@@ -308,7 +343,7 @@ export class CoachConversation {
     }
   }
 
-  private async sendGemini(context: string, question: string, ctx: CoachContext, cb: SendCallbacks): Promise<string> {
+  private async sendGemini(context: string, question: string, ctx: CoachContext, turn: Turn, cb: SendCallbacks): Promise<string> {
     this.geminiHistory.push({ role: 'user', parts: [{ text: context }, { text: question }] });
 
     let answer = '';
@@ -343,15 +378,8 @@ export class CoachConversation {
 
       const results: Part[] = [];
       for (const call of calls) {
-        const move = toolMove(call.name, call.args);
-        let response: Record<string, unknown>;
-        if (!move) response = { error: `Invalid input: ${JSON.stringify(call.args)}` };
-        else {
-          cb.onStatus(`Checking ${move}…`);
-          const r = await analyzeMove(ctx.fen, move);
-          response = r.ok ? { output: r.text } : { error: r.text };
-        }
-        results.push({ functionResponse: { id: call.id, name: call.name, response } });
+        const r = await runTool(call.name, call.args, ctx, turn, cb.onStatus);
+        results.push({ functionResponse: { id: call.id, name: call.name, response: r.ok ? { output: r.text } : { error: r.text } } });
       }
       cb.onStatus(null);
       this.geminiHistory.push({ role: 'user', parts: results });
@@ -359,7 +387,7 @@ export class CoachConversation {
     return answer;
   }
 
-  private async sendClaude(context: string, question: string, ctx: CoachContext, cb: SendCallbacks): Promise<string> {
+  private async sendClaude(context: string, question: string, ctx: CoachContext, turn: Turn, cb: SendCallbacks): Promise<string> {
     this.claudeHistory.push({
       role: 'user',
       content: [
@@ -411,18 +439,7 @@ export class CoachConversation {
 
       const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
       for (const use of toolUses) {
-        const move = toolMove(use.name, use.input);
-        if (!move) {
-          results.push({
-            type: 'tool_result',
-            tool_use_id: use.id,
-            is_error: true,
-            content: JSON.stringify({ INVALID_INPUT: use.input }),
-          });
-          continue;
-        }
-        cb.onStatus(`Checking ${move}…`);
-        const r = await analyzeMove(ctx.fen, move);
+        const r = await runTool(use.name, use.input, ctx, turn, cb.onStatus);
         results.push({ type: 'tool_result', tool_use_id: use.id, content: r.text, is_error: !r.ok });
       }
       cb.onStatus(null);
