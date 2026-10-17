@@ -9,9 +9,10 @@
   --text: #bababa;
   --bright: #e8e6e3;
   --muted: #8a8784;
-  --green: #629924;
-  --green-hover: #6fae29;
-  --green-soft: rgba(98, 153, 36, 0.14);
+  --green: #84cf86;
+  --green-hover: #9adb9c;
+  --green-soft: rgba(132, 207, 134, 0.14);
+  --on-green: #0d2b1f; /* text on --green: mint is too light for white text */
   --red: #cc3333;
   --red-soft: rgba(204, 51, 51, 0.14);
   --blue: #3692e7;
@@ -33,9 +34,10 @@
   --text: #4d4d4d;
   --bright: #1f1f1f;
   --muted: #787878;
-  --green: #629924;
-  --green-hover: #568720;
-  --green-soft: rgba(98, 153, 36, 0.12);
+  --green: #84cf86;
+  --green-hover: #70c272;
+  --green-soft: rgba(132, 207, 134, 0.16);
+  --on-green: #0d2b1f;
   --red: #c33;
   --red-soft: rgba(204, 51, 51, 0.1);
   --blue: #1b78d0;
@@ -243,6 +245,7 @@ button {
 }
 .icon.good {
   background: var(--green);
+  color: var(--on-green);
 }
 .icon.bad {
   background: var(--red);
@@ -359,7 +362,7 @@ button {
 }
 .move.current {
   background: var(--green);
-  color: #fff;
+  color: var(--on-green);
 }
 .move:disabled {
   cursor: default;
@@ -385,12 +388,12 @@ button {
 .actions button.primary {
   background: var(--green);
   border-color: var(--green);
-  color: #fff;
+  color: var(--on-green);
   font-weight: 600;
 }
 .actions button.primary:hover {
   background: var(--green-hover);
-  color: #fff;
+  color: var(--on-green);
 }
 
 .meta {
@@ -590,7 +593,7 @@ button {
 }
 .segmented button[aria-pressed='true'] {
   background: var(--green);
-  color: #fff;
+  color: var(--on-green);
 }
 
 /* Tab panels: the inactive one is laid out but invisible and inert, so its
@@ -965,7 +968,7 @@ button {
   border: 0;
   border-radius: 999px;
   background: var(--green);
-  color: #fff;
+  color: var(--on-green);
   font-weight: 600;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
@@ -1099,7 +1102,7 @@ button {
 }
 .coach-msg.user .coach-bubble {
   background: var(--green);
-  color: #fff;
+  color: var(--on-green);
   border-bottom-right-radius: 4px;
 }
 .coach-msg.coach .coach-bubble {
@@ -1188,7 +1191,7 @@ button {
   border: 0;
   border-radius: 8px;
   background: var(--green);
-  color: #fff;
+  color: var(--on-green);
   font-size: 1rem;
 }
 .coach-input button:disabled {
@@ -1218,7 +1221,7 @@ button {
 }
 .coach-line:hover:not(:disabled) {
   background: var(--green);
-  color: #fff;
+  color: var(--on-green);
 }
 .coach-line.showing {
   border-color: var(--border);
@@ -1267,7 +1270,7 @@ button {
   border: 0;
   border-radius: 999px;
   background: var(--green);
-  color: #fff;
+  color: var(--on-green);
   font-size: 0.75rem;
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
@@ -1380,7 +1383,7 @@ button {
   border: 0;
   border-radius: 4px;
   background: var(--green);
-  color: #fff;
+  color: var(--on-green);
   font-size: 0.82rem;
   font-weight: 600;
   white-space: nowrap;
