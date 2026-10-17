@@ -17,8 +17,9 @@ import type { Chess } from 'chessops/chess';
 import { makeFen } from 'chessops/fen';
 import { makeSan } from 'chessops/san';
 import { engine, ENGINE_NAME, formatScore, type Evaluation } from './engine';
-import { legalMovesSan, parseMove, posFromFen, pvToSan } from './position';
+import { legalMovesSan, parseMove, posFromFen } from './position';
 import { lineMoves } from './session';
+import { annotatedPv, checkNote, describeTactics } from './tactics';
 import { checkLine, SHOW_LINE, type Walkthrough } from './walkthrough';
 
 const PROVIDER = __COACH_PROVIDER__;
@@ -70,10 +71,11 @@ export function contextLabel(ctx: CoachContext): string {
 
 const SYSTEM = `You are a friendly, expert chess coach inside a chess training app. The user is looking at a position (from a puzzle or from a free analysis board) and asks you about it.
 
-Each user message starts with a <context> block describing the position they are looking at right now: the FEN, a list of pieces, puzzle details if any, and a fresh Stockfish evaluation with its top lines. If the user named specific moves, the context also includes Stockfish's evaluation after each of those moves. The position can change between messages; always answer about the latest <context>.
+Each user message starts with a <context> block describing the position they are looking at right now: the FEN, a list of pieces, tactical facts, puzzle details if any, and a fresh Stockfish evaluation with its top lines. If the user named specific moves, the context also includes Stockfish's evaluation after each of those moves. The position can change between messages; always answer about the latest <context>.
 
 How to coach:
 - Ground concrete claims (who is better, whether a move works, what the best continuation is) in the Stockfish data you are given. Don't invent evaluations or variations. If you need the evaluation of a move that isn't in the context, call the analyze_move tool.
+- The "Tactical facts" and the notes in parentheses after moves ("discovered check by Rb2", "double check by …") are computed exactly by the app. Trust them over your own reading of the board: a check, pin or attack may come from a piece other than the one that moved, so read these before explaining a move.
 - Explain ideas, not just numbers: threats, tactics, weaknesses, plans, and why the engine's move works. Translate evaluations into plain language (e.g. "+1.5" is "White is clearly better, roughly a piece's worth of advantage in practice").
 - Write moves in standard algebraic notation and bold them (**Nf3**, **exd5**, **O-O**). Never use LaTeX or $…$ math markup: write **a4**, not $a4$. Scores are from White's point of view in pawns; "#3" means mate in 3 for White and "#-3" mate in 3 for Black.
 - Keep answers short, usually 2 to 5 sentences, unless the user asks for more depth.
@@ -195,7 +197,7 @@ function gameOverText(pos: Chess): string | null {
 
 function describeEval(ev: Evaluation): string {
   const lines = ev.lines.filter(Boolean).map((l, i) => {
-    const moves = lineMoves(ev.fen, pvToSan(ev.fen, l.moves, 8))
+    const moves = lineMoves(ev.fen, annotatedPv(ev.fen, l.moves, 8))
       .map(m => (m.number ? `${m.number} ${m.san}` : m.san))
       .join(' ');
     return `  ${i + 1}. ${formatScore(l).padEnd(6)} ${moves}`;
@@ -214,7 +216,8 @@ async function analyzeMove(fen: string, moveText: string, turn?: Turn): Promise<
     };
   const [numbered] = lineMoves(fen, [makeSan(pos, move)]);
   const san = numbered.san;
-  const label = `${numbered.number ?? ''} ${san}`.trim();
+  const note = checkNote(pos, move);
+  const label = `${numbered.number ?? ''} ${san}${note ? ` (${note})` : ''}`.trim();
   pos.play(move);
   const after = makeFen(pos.toSetup());
   const over = gameOverText(pos);
@@ -222,7 +225,7 @@ async function analyzeMove(fen: string, moveText: string, turn?: Turn): Promise<
   const ev = await engine.evaluate(after, { multiPv: 3, depth: 16 });
   if (ev) turn?.evals.set(after, ev);
   if (!ev) return { ok: true, san, text: `After ${label} (FEN ${after}): Stockfish is unavailable.` };
-  return { ok: true, san, text: `After ${label} (FEN ${after}):\n${describeEval(ev)}` };
+  return { ok: true, san, text: `After ${label} (FEN ${after}):\n${describeEval(ev)}\n${describeTactics(pos)}` };
 }
 
 /** Explicit moves in the question, e.g. "what about Nxe5?" or "why not O-O". */
@@ -247,6 +250,7 @@ async function buildContext(ctx: CoachContext, question: string, turn: Turn, onS
     `Position (FEN): ${ctx.fen}`,
     `${pos.turn === 'white' ? 'White' : 'Black'} to move${pos.isCheck() ? ' (in check)' : ''}.`,
     describePieces(pos),
+    describeTactics(pos),
   ];
   if (ctx.source === 'puzzle' && ctx.puzzle) {
     const p = ctx.puzzle;
