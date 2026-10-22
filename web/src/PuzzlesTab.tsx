@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AnalysisRequest } from './position';
 import { PuzzleView } from './PuzzleView';
 import { loadIndex, loadPuzzle, type PuzzleIndex } from './puzzleStore';
 import type { Puzzle } from './session';
-import { SettingsPanel } from './SettingsPanel';
 import { loadAttempts, saveAttempts, summarize, type Attempt, type Result, type Settings } from './storage';
 import { themeName } from './themes';
 
@@ -18,14 +17,13 @@ const RATING_BANDS: Record<string, [number, number]> = {
 interface Props {
   active: boolean;
   settings: Settings;
-  setSettings: Dispatch<SetStateAction<Settings>>;
   onPuzzleChange: (puzzle: Puzzle | null) => void;
   onBoardSize: (px: number | null) => void;
   onPosition: (pos: { fen: string; solved: boolean }) => void;
   onAnalyze: (req: Omit<AnalysisRequest, 'id'>) => void;
 }
 
-export function PuzzlesTab({ active, settings, setSettings, onPuzzleChange, onBoardSize, onPosition, onAnalyze }: Props) {
+export function PuzzlesTab({ active, settings, onPuzzleChange, onBoardSize, onPosition, onAnalyze }: Props) {
   const [index, setIndex] = useState<PuzzleIndex | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingPuzzle, setLoadingPuzzle] = useState(false);
@@ -181,7 +179,6 @@ export function PuzzlesTab({ active, settings, setSettings, onPuzzleChange, onBo
         )}
       </section>
 
-      <SettingsPanel settings={settings} setSettings={setSettings} />
     </PuzzleView>
   );
 }

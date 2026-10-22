@@ -171,8 +171,12 @@ button {
 /* Pinned to the top of the board and packed from the top: without a pop-up
    the panel is X − Y tall; the hint/solution opens mid-panel and pushes the
    sections below it down until the panel's bottom meets the board's (X). */
-.side {
+.side-wrap {
+  position: relative;
   align-self: start;
+  min-width: 0;
+}
+.side {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -192,6 +196,36 @@ button {
     height: auto;
     overflow: visible;
   }
+}
+/* Faint fade + caret at an edge of the side column that has more to scroll. */
+.scroll-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  height: 32px;
+  color: var(--muted);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.scroll-hint.shown {
+  opacity: 0.75;
+}
+.scroll-hint.up {
+  top: 0;
+  align-items: flex-start;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 70%, transparent), transparent);
+}
+.scroll-hint.up svg {
+  transform: rotate(180deg);
+}
+.scroll-hint.down {
+  bottom: 0;
+  align-items: flex-end;
+  background: linear-gradient(to top, color-mix(in srgb, var(--bg) 70%, transparent), transparent);
 }
 .side > section {
   background: var(--panel);
@@ -629,6 +663,49 @@ button {
 .tabs button[aria-selected='true'] {
   color: var(--bright);
   border-bottom-color: var(--green);
+}
+.top .tabs {
+  margin-left: auto;
+}
+
+/* Header settings: gear button and its popover */
+.settings-menu {
+  position: relative;
+  align-self: center;
+}
+.settings-gear {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+}
+.settings-gear:hover,
+.settings-gear[aria-expanded='true'] {
+  color: var(--bright);
+  background: var(--hover);
+}
+.settings-gear svg {
+  transition: transform 0.3s ease;
+}
+.settings-gear[aria-expanded='true'] svg {
+  transform: rotate(60deg);
+}
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: min(340px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
 }
 
 /* Board tab: editor */

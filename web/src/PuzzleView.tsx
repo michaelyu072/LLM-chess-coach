@@ -8,6 +8,7 @@ import { lineMoves, PuzzleSession, type Puzzle } from './session';
 import { playSound, soundForSan } from './sound';
 import type { Result } from './storage';
 import { META_THEMES, themeDescription, themeName } from './themes';
+import { SidePanel } from './SidePanel';
 
 type Phase = 'intro' | 'play' | 'good' | 'wrong' | 'solved' | 'failed';
 
@@ -332,7 +333,7 @@ export function PuzzleView(props: Props) {
         </div>
       </div>
 
-      <aside className="side">
+      <SidePanel>
         <section className={`feedback feedback-${phase}`}>
           {phase === 'intro' && <p className="headline">Get ready…</p>}
           {phase === 'play' && (
@@ -477,7 +478,7 @@ export function PuzzleView(props: Props) {
         </section>
 
         {props.children}
-      </aside>
+      </SidePanel>
     </div>
   );
 }

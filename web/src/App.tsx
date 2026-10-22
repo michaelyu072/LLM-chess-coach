@@ -4,6 +4,7 @@ import { BoardTab } from './BoardTab';
 import type { CoachContext } from './coach';
 import { CoachChat } from './CoachChat';
 import { PuzzlesTab } from './PuzzlesTab';
+import { SettingsMenu } from './SettingsPanel';
 import { posFromFen, type AnalysisRequest } from './position';
 import type { Puzzle } from './session';
 import { loadSettings, saveSettings, type Settings } from './storage';
@@ -162,6 +163,7 @@ export function App() {
             </button>
           ))}
         </nav>
+        <SettingsMenu settings={settings} setSettings={setSettings} />
       </header>
 
       {/* Both tabs stay mounted (and laid out, just invisible) so switching keeps
@@ -172,7 +174,6 @@ export function App() {
           <PuzzlesTab
             active={tab === 'puzzles'}
             settings={settings}
-            setSettings={setSettings}
             onPuzzleChange={onPuzzleChange}
             onBoardSize={onBoardSize}
             onPosition={onPuzzlePosition}
@@ -183,7 +184,6 @@ export function App() {
           <BoardTab
             active={tab === 'board'}
             settings={settings}
-            setSettings={setSettings}
             puzzle={puzzle}
             onPosition={onBoardPosition}
             analysisRequest={analysisRequest}

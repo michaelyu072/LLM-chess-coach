@@ -7,7 +7,7 @@ import { makeFen, parseBoardFen } from 'chessops/fen';
 import { makeSan } from 'chessops/san';
 import type { Color, Role } from 'chessops/types';
 import { parseSquare, parseUci } from 'chessops/util';
-import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { pieceUrl } from './assets';
 import { ENGINE_NAME, formatScore, useEngine, winningChances } from './engine';
 import { PromotionPicker } from './PromotionPicker';
@@ -25,9 +25,9 @@ import {
   type EditorState,
 } from './position';
 import { lineMoves, PuzzleSession, type Puzzle } from './session';
-import { SettingsPanel } from './SettingsPanel';
 import { playSound, soundForSan } from './sound';
 import type { Settings } from './storage';
+import { SidePanel } from './SidePanel';
 
 // ---------------------------------------------------------------------------
 // Editor model
@@ -96,7 +96,6 @@ function statusText(pos: Chess): string {
 interface Props {
   active: boolean;
   settings: Settings;
-  setSettings: Dispatch<SetStateAction<Settings>>;
   /** The puzzle currently open in the Puzzles tab, if any. */
   puzzle: Puzzle | null;
   /** The position on screen, for the coach chat (null while it's illegal). */
@@ -105,7 +104,7 @@ interface Props {
   analysisRequest: AnalysisRequest | null;
 }
 
-export function BoardTab({ active, settings, setSettings, puzzle, onPosition, analysisRequest }: Props) {
+export function BoardTab({ active, settings, puzzle, onPosition, analysisRequest }: Props) {
   const boardEl = useRef<HTMLDivElement>(null);
   const trashEl = useRef<HTMLDivElement>(null);
   const cg = useRef<Api>();
@@ -549,7 +548,7 @@ export function BoardTab({ active, settings, setSettings, puzzle, onPosition, an
         </div>
       </div>
 
-      <aside className="side">
+      <SidePanel>
         <section className={`feedback ${mode === 'edit' && validity.error ? 'feedback-wrong' : ''}`}>
           <div>
             <p className="headline">
@@ -769,8 +768,7 @@ export function BoardTab({ active, settings, setSettings, puzzle, onPosition, an
           {fenError ? <p className="fen-error">{fenError}</p> : mode === 'edit' && <p className="muted">Paste a FEN and press Enter to load it.</p>}
         </section>
 
-        <SettingsPanel settings={settings} setSettings={setSettings} />
-      </aside>
+      </SidePanel>
     </div>
   );
 }
